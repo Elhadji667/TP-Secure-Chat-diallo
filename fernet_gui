@@ -1,0 +1,39 @@
+import base64
+import os
+import hashlib
+from cryptography.fernet import Fernet
+from ciphered_gui import CipheredGUI
+
+class FernetGUI(CipheredGUI):
+    def __init__(self, master=None):
+        super().__init__(master)
+
+    def run_chat(self):
+        self._derive_key_sha256()
+        super().run_chat()
+
+    def _derive_key_sha256(self):
+        # Récupération du mot de passe entré par l'utilisateur
+        password = self.password_entry.get()
+        sha256_password = hashlib.sha256(password.encode()).digest()
+        self._key = base64.b64encode(sha256_password)
+
+    def encrypt(self, message):
+        fernet = Fernet(self._key)
+        encrypted_message = fernet.encrypt(message.encode())
+        return encrypted_message
+
+    def decrypt(self, encrypted_message):
+        fernet = Fernet(self._key)
+        decrypted_message = fernet.decrypt(encrypted_message)
+        return decrypted_message.decode("utf-8")
+
+    def send(self, message):
+        encrypted_message = self.encrypt(message)
+        encrypted_message_base64 = base64.b64encode(encrypted_message).decode()
+        super().send(encrypted_message_base64)
+
+    def recv(self, message):
+        encrypted_message = base64.b64decode(message.encode())
+        decrypted_message = self.decrypt(encrypted_message)
+        super().recv(decrypted_message)

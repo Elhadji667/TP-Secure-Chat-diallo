@@ -1,0 +1,33 @@
+import base64
+import os
+import hashlib
+import time
+from cryptography.fernet import Fernet, InvalidToken
+from fernet_gui import FernetGUI
+
+class TimeFernetGUI(FernetGUI):
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.TTL = 30
+
+    def encrypt(self, message):
+        fernet = Fernet(self._key)
+        current_time = int(time.time())
+        encrypted_message = fernet.encrypt_at_time(message.encode(), current_time)
+        return encrypted_message
+
+    def decrypt(self, encrypted_message):
+        fernet = Fernet(self._key)
+        current_time = int(time.time())
+        try:
+            decrypted_message = fernet.decrypt_at_time(encrypted_message, current_time, ttl=self.TTL)
+            return decrypted_message.decode("utf-8")
+        except InvalidToken as e:
+            self._log.error("Message decryption failed: TTL exceeded")
+            return None
+
+    def recv(self, message):
+        encrypted_message = base64.b64decode(message.encode())
+        decrypted_message = self.decrypt(encrypted_message)
+        if decrypted_message is not None:
+            super().recv(decrypted_message)
